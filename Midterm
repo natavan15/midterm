@@ -1,0 +1,90 @@
+# Import necessary libraries
+import requests
+import pandas as pd
+from sklearn.metrics.pairwise import cosine_similarity
+from sklearn.feature_extraction.text import CountVectorizer
+
+# Define user profiles with sample interests
+user_profiles = {
+    "user_1": {"id": 1, "interests": ["technology", "AI", "space"]},
+    "user_2": {"id": 2, "interests": ["politics", "economy", "environment"]},
+    "user_3": {"id": 3, "interests": ["sports", "health", "travel"]}
+}
+
+# Fetch news articles using a simulated API call
+def fetch_news_articles(api_key):
+    url = "https://newsapi.org/v2/top-headlines"
+    params = {"country": "us", "apiKey": api_key, "pageSize": 50}
+    response = requests.get(url, params=params)
+    return response.json()["articles"]
+
+# Simulated news articles with title, content, and category
+news_articles = [
+    {"title": "AI Advances in Robotics", "content": "Latest breakthroughs in AI...", "category": "AI"},
+    {"title": "Economic Forecast for 2024", "content": "Predictions on economy...", "category": "economy"},
+    {"title": "New Tech Gadgets", "content": "Upcoming tech releases...", "category": "technology"},
+    # More articles...
+]
+
+# Content-Based Filtering: Select articles matching user's interests
+def content_based_filtering(user_interests, articles):
+    filtered_articles = []
+    for article in articles:
+        if article["category"].lower() in [interest.lower() for interest in user_interests]:
+            filtered_articles.append(article)
+    return filtered_articles
+
+# Example usage of content-based filtering
+user = user_profiles["user_1"]
+filtered_articles = content_based_filtering(user["interests"], news_articles)
+print("Filtered Articles:", filtered_articles)
+
+# Simulated user-article interaction data for collaborative filtering
+interaction_data = pd.DataFrame([
+    [1, 0, 0, 1],
+    [0, 1, 0, 1],
+    [1, 0, 1, 0],
+], columns=["AI Advances in Robotics", "Economic Forecast for 2024", "New Tech Gadgets", "Global Warming Impact"], 
+   index=["user_1", "user_2", "user_3"])
+
+# Calculate article similarities using cosine similarity
+similarity_matrix = cosine_similarity(interaction_data.T)
+
+# Collaborative Filtering: Recommend articles based on similar users
+def collaborative_filtering(user_id, interaction_data, similarity_matrix):
+    user_index = interaction_data.index.get_loc(user_id)
+    user_interactions = interaction_data.iloc[user_index].values
+    scores = similarity_matrix.dot(user_interactions)
+    recommended_indices = scores.argsort()[::-1]
+    recommendations = [interaction_data.columns[i] for i in recommended_indices if user_interactions[i] == 0]
+    return recommendations[:3]
+
+# Example usage of collaborative filtering
+recommendations = collaborative_filtering("user_1", interaction_data, similarity_matrix)
+print("Collaborative Recommendations:", recommendations)
+
+# Ranking Articles: Combine content-based and collaborative filtering results
+def rank_articles(filtered_articles, recommendations):
+    ranked_articles = []
+    for article in filtered_articles:
+        if article["title"] in recommendations:
+            article["relevance_score"] = 2  # Higher score for collaborative-filtered
+        else:
+            article["relevance_score"] = 1  # Lower score for content-based
+        ranked_articles.append(article)
+    return sorted(ranked_articles, key=lambda x: x["relevance_score"], reverse=True)
+
+# Example usage of ranking
+ranked_articles = rank_articles(filtered_articles, recommendations)
+for article in ranked_articles:
+    print(f"Title: {article['title']} | Relevance Score: {article['relevance_score']}")
+
+# Display Recommendations
+def display_recommendations(user_id, ranked_articles):
+    print(f"Recommendations for {user_id}:")
+    for i, article in enumerate(ranked_articles, start=1):
+        print(f"{i}. {article['title']} - {article['category']}")
+
+# Example display
+display_recommendations("user_1", ranked_articles)
+
